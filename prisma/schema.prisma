@@ -221,6 +221,8 @@ model Education {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([resumeId, degree, instituteName, startDate])
 }
 
 model Certificate {
