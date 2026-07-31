@@ -141,33 +141,31 @@ export async function POST(
         ? new Date(expiryDate)
         : null;
 
-    if (parsedExpiryDate) {
-      if (Number.isNaN(parsedExpiryDate?.getTime())) {
-        return NextResponse.json(
-          {
-            message: "Invalid expiry date.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      if (
-        parsedIssueDate &&
-        parsedExpiryDate &&
-        parsedExpiryDate < parsedIssueDate
-      ) {
-        return NextResponse.json(
-          {
-            message: "Expiry date cannot be before issue date.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
+    if (Number.isNaN(parsedExpiryDate?.getTime())) {
+      return NextResponse.json(
+        {
+          message: "Invalid expiry date.",
+        },
+        {
+          status: 400,
+        }
+      );
     }
+
+    if (
+      parsedIssueDate &&
+      parsedExpiryDate &&
+      parsedExpiryDate < parsedIssueDate
+    ) {
+      return NextResponse.json(
+        {
+          message: "Expiry date cannot be before issue date.",
+        },
+        {
+          status: 400,
+        }
+      );
+    }    
 
     let existingCertificate;
 
@@ -191,17 +189,6 @@ export async function POST(
       });
     }
 
-    if (existingCertificate) {
-      return NextResponse.json(
-        {
-          message: "Certificate already exists.",
-        },
-        {
-          status: 409,
-        }
-      );
-    }
-
     let certificate;
 
     if (!existingCertificate) {
@@ -222,6 +209,9 @@ export async function POST(
         select: {
           id: true,
           title: true,
+          issuer: true,
+          credentialId: true,
+          credentialUrl: true
         },
       });
     } else {
@@ -249,7 +239,7 @@ export async function POST(
       );
     }
 
-    const resumeCertificate = await prisma.resumeCertificate.create({
+    await prisma.resumeCertificate.create({
       data: {
         resumeId: params.resumeId,
         certificateId: certificate.id,

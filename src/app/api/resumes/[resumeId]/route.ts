@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { resumeId: string } }
 ) {
   try {
      
@@ -39,7 +39,7 @@ export async function PATCH(
     // Ownership Validation
     const resume = await prisma.resume.findFirst({
       where: {
-        id: params.id,
+        id: params.resumeId,
         candidateId: session.user.id,
       },
       select: {
@@ -92,7 +92,7 @@ export async function PATCH(
           candidateId: session.user.id,
           title: normalizedTitle,
           NOT: {
-            id: params.id,
+            id: params.resumeId,
           },
         }
       });
@@ -142,7 +142,7 @@ export async function PATCH(
 
     const updatedResume = await prisma.resume.update({
       where: {
-        id: params.id,
+        id: params.resumeId,
       },
       data,
       select: {
@@ -160,6 +160,178 @@ export async function PATCH(
       {
         message: "Resume updated successfully.",
         resume: updatedResume,
+      },
+      {
+        status: 200,
+      }
+    );
+
+  } catch(error) {
+    console.log(error);
+
+    return NextResponse.json(
+      {
+        message: "Something went wrong.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
+
+// View the entire resume
+export async function GET(
+  request:Request,
+  { params }: { params: { resumeId: string } }
+) {
+  try {
+    // Authentication
+    const session = await auth();
+
+    if (!session) {
+      return NextResponse.json(
+        {
+          message: "Login required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // Authorization
+    if (
+      session.user.role !== Role.CANDIDATE &&
+      session.user.role !== Role.RECRUITER
+    ) {
+      return NextResponse.json(
+        {
+          message: "You are not authorized to view resumes.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    // Candidate ownership
+    const whereClause: Prisma.ResumeWhereInput =
+      session.user.role === Role.CANDIDATE
+        ? {
+            id: params.resumeId,
+            candidateId: session.user.id,
+          }
+        : {
+            id: params.resumeId,
+          };
+
+    // Fetch the complete resume
+    const resume = await prisma.resume.findFirst({
+      where: whereClause,
+      select: {
+        id: true,
+        title: true,
+        summary: true,
+        githubUrl: true,
+        linkedinUrl: true,
+        resumeUrl: true,
+
+        experiences: {
+          orderBy: {
+            startDate: "desc",
+          },
+          select: {
+            id: true,
+            companyName: true,
+            jobTitle: true,
+            location: true,
+            description: true,
+            startDate: true,
+            endDate: true,
+            currentlyWorking: true,
+          },
+        },
+
+        educations: {
+          orderBy: {
+            startDate: "desc",
+          },
+          select: {
+            id: true,
+            degree: true,
+            fieldOfStudy: true,
+            instituteName: true,
+            grade: true,
+            startDate: true,
+            endDate: true,
+            currentlyStudying: true,
+          },
+        },
+
+        projects: {
+          orderBy: {
+            startDate: "desc",
+          },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            githubUrl: true,
+            liveUrl: true,
+            techStack: true,
+            startDate: true,
+            endDate: true,
+          },
+        },
+
+        resumeCertificates: {
+          select: {
+            certificate: {
+              select: {
+                id: true,
+                title: true,
+                issuer: true,
+                issueDate: true,
+                expiryDate: true,
+                credentialId: true,
+                credentialUrl: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // Resume not found
+    if (!resume) {
+      return NextResponse.json(
+        {
+          message: "Resume not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    // Create the response object
+    const {
+      resumeCertificates,
+      ...resumeData
+    } = resume;
+
+    const response = {
+      ...resumeData,
+      certificates: resume.resumeCertificates.map(
+        (item) => item.certificate
+      ),
+    };
+
+    // Success response
+    return NextResponse.json(
+      {
+        resume: response,
       },
       {
         status: 200,
