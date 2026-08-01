@@ -389,3 +389,112 @@ export async function PATCH(
     );
   }
 }
+
+// Delete Experience
+export async function DELETE(
+  request: Request,
+  { params }: { params: {
+      resumeId: string;
+      experienceId: string;
+    };
+  }
+) {
+  try {
+    // Authentication
+    const session = await auth();
+
+    if (!session) {
+      return NextResponse.json(
+        {
+          message: "Login required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // Authorization
+    if (session.user.role !== Role.CANDIDATE) {
+      return NextResponse.json(
+        {
+          message: "Only candidates can delete experiences.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    // Resume Ownership Validation
+    const resume = await prisma.resume.findFirst({
+      where: {
+        id: params.resumeId,
+        candidateId: session.user.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!resume) {
+      return NextResponse.json(
+        {
+          message: "Resume not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    // Experience Ownership Validation
+    const experience = await prisma.experience.findFirst({
+      where: {
+        id: params.experienceId,
+        resumeId: params.resumeId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!experience) {
+      return NextResponse.json(
+        {
+          message: "Experience not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    // Delete Experience
+    await prisma.experience.delete({
+      where: {
+        id: params.experienceId,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        message: "Experience deleted successfully.",
+      },
+      {
+        status: 200,
+      }
+    );
+  } catch (error) {
+    console.log(error);
+
+    return NextResponse.json(
+      {
+        message: "Something went wrong.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
