@@ -1,6 +1,6 @@
 // Add one experience to a resume.
 import { NextResponse } from "next/server";
-import { Prisma, Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -50,7 +50,7 @@ export async function POST(
     if (!resume) {
       return NextResponse.json(
         {
-          message: "Resume doesn't exists.",
+          message: "Resume not found.",
         },
         {
           status: 404,
