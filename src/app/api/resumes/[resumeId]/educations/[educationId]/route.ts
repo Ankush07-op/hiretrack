@@ -28,7 +28,7 @@ export async function PATCH(
     if (session.user.role !== Role.CANDIDATE){
       return NextResponse.json(
         {
-          message: "Only candidate can update resume.",
+          message: "Only candidates can update education.",
         },
         {
           status: 403,
@@ -184,24 +184,48 @@ export async function PATCH(
         ? new Date(startDate)
         : undefined;
 
-    if (startDate !== undefined) {
-
-      if (parsedStartDate) {
-        data.startDate = parsedStartDate;
-      }
+    // Validate Dates
+    if (
+      parsedStartDate &&
+      Number.isNaN(parsedStartDate.getTime())
+    ) {
+      return NextResponse.json(
+        {
+          message: "Invalid start date.",
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
+    if (parsedStartDate) {
+      data.startDate = parsedStartDate;
+    }
+    
     const parsedEndDate =
       endDate
         ? new Date(endDate)
         : undefined;
 
-    if (endDate !== undefined) {
-
-      if (parsedEndDate) {
-        data.endDate = parsedEndDate;
-      }
+    // Validate End Date
+    if (
+      parsedEndDate &&
+      Number.isNaN(parsedEndDate.getTime())
+    ) {
+      return NextResponse.json(
+        {
+          message: "Invalid end date.",
+        },
+        {
+          status: 400,
+        }
+      );
     }
+
+    if (parsedEndDate) {
+      data.endDate = parsedEndDate;
+    }    
 
     if (currentlyStudying !== undefined) {
 
@@ -265,26 +289,11 @@ export async function PATCH(
       );
     }
 
-    // Validate Dates
-    if (
-      parsedStartDate &&
-      Number.isNaN(parsedStartDate.getTime())
-    ) {
-      return NextResponse.json(
-        {
-          message: "Invalid start date.",
-        },
-        {
-          status: 400,
-        }
-      );
-    }
-
     // Validate endDate
     if (effectiveCurrentlyStudying && effectiveEndDate) {
       return NextResponse.json(
         {
-          message: "End date should not be provided for a currentlyStudying is true.",
+          message: "End date should not be provided when currentlyStudying is true.",
         },
         {
           status: 400,
@@ -303,31 +312,18 @@ export async function PATCH(
       );
     }
 
-    if (parsedEndDate) {
-      if (Number.isNaN(parsedEndDate.getTime())) {
-        return NextResponse.json(
-          {
-            message: "Invalid end date.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      if (
-        effectiveEndDate &&
-        effectiveEndDate < effectiveStartDate
-      ) {
-        return NextResponse.json(
-          {
-            message: "End date cannot be before start date.",
-          },
-          {
-            status: 400,
-          }
-        );
-      }
+    if (
+      effectiveEndDate &&
+      effectiveEndDate < effectiveStartDate
+    ) {
+      return NextResponse.json(
+        {
+          message: "End date cannot be before start date.",
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
     // Empty update validation
@@ -371,6 +367,115 @@ export async function PATCH(
     );
 
   } catch(error) {
+    console.log(error);
+
+    return NextResponse.json(
+      {
+        message: "Something went wrong.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
+
+// Delete Education
+export async function DELETE(
+  _request: Request,
+  { params }: { params: {
+      resumeId: string;
+      educationId: string;
+    };
+  }
+) {
+  try {
+    // Authentication
+    const session = await auth();
+
+    if (!session) {
+      return NextResponse.json(
+        {
+          message: "Login required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // Authorization
+    if (session.user.role !== Role.CANDIDATE) {
+      return NextResponse.json(
+        {
+          message: "Only candidates can delete education entries.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    // Resume Ownership Validation
+    const resume = await prisma.resume.findFirst({
+      where: {
+        id: params.resumeId,
+        candidateId: session.user.id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!resume) {
+      return NextResponse.json(
+        {
+          message: "Resume not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    // Education Ownership Validation
+    const education = await prisma.education.findFirst({
+      where: {
+        id: params.educationId,
+        resumeId: params.resumeId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!education) {
+      return NextResponse.json(
+        {
+          message: "Education not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    // Delete Education
+    await prisma.education.delete({
+      where: {
+        id: params.educationId,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        message: "Education deleted successfully.",
+      },
+      {
+        status: 200,
+      }
+    );
+  } catch (error) {
     console.log(error);
 
     return NextResponse.json(
