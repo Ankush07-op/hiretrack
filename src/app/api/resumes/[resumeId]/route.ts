@@ -351,3 +351,141 @@ export async function GET(
     );
   }
 }
+
+// Delete a resume
+export async function DELETE(
+  _request: Request,
+  { params }: { params: { resumeId: string } }
+) {
+  try {
+    // Authentication
+    const session = await auth();
+
+    if (!session) {
+      return NextResponse.json(
+        {
+          message: "Login required.",
+        },
+        {
+          status: 401,
+        }
+      );
+    }
+
+    // Authorization
+    if (session.user.role !== Role.CANDIDATE) {
+      return NextResponse.json(
+        {
+          message: "Only candidates candelete resumes.",
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
+    // Resume Ownership Validation
+    const resume = await prisma.resume.findFirst({
+      where: {
+        id: params.resumeId,
+        candidateId: session.user.id,
+      },
+    });
+
+    if (!resume) {
+      return NextResponse.json(
+        {
+          message: "Resume not found.",
+        },
+        {
+          status: 404,
+        }
+      );
+    }
+
+    // Fetch all linked certificates
+    const resumeCertificates =
+      await prisma.resumeCertificate.findMany({
+        where: {
+          resumeId: params.resumeId,
+        },
+        select: {
+          certificateId: true,
+        },
+      });
+
+    // Delete all ResumeCertificate relations
+    await prisma.resumeCertificate.deleteMany({
+      where: {
+        resumeId: params.resumeId,
+      },
+    });
+
+    // Delete orphan certificates
+    for (const item of resumeCertificates) {
+      const remainingLinks =
+      await prisma.resumeCertificate.count({
+        where: {
+          certificateId: item.certificateId,
+        },
+      });
+
+      if (remainingLinks === 0) {
+        await prisma.certificate.delete({
+          where: {
+            id: item.certificateId,
+          },
+        });
+      }
+    }
+
+    // Delete Experiences
+    await prisma.experience.deleteMany({
+      where: {
+        resumeId: params.resumeId,
+      },
+    });
+
+    // Delete Educations
+    await prisma.education.deleteMany({
+      where: {
+        resumeId: params.resumeId,
+      },
+    });
+
+    // Delete Projects
+    await prisma.project.deleteMany({
+      where: {
+        resumeId: params.resumeId,
+      },
+    });
+
+    // Delete Resume
+    await prisma.resume.delete({
+      where: {
+        id: params.resumeId,
+      },
+    });
+
+    return NextResponse.json(
+      {
+        message: "Resume deleted successfully.",
+      },
+      {
+        status: 200,
+      }
+    );
+
+  } catch (error) {
+    console.error(error);
+
+    return NextResponse.json(
+      {
+        message: "Something went wrong.",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
