@@ -5,10 +5,11 @@ import { JobStatus } from "@prisma/client";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
-    
+    const params = await props.params;
+
     const job = await prisma.job.findUnique({
       where: {
         id: params.id,

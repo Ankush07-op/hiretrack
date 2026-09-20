@@ -194,10 +194,10 @@ export async function POST(request: Request) {
         ? about.trim()
         : null;
 
-    if (normalizedAbout) {
+    if (about !== undefined && about !== null && typeof about !== "string") {
       return NextResponse.json(
         {
-          message: "About must be a string and describe about the company.",
+          message: "About must be a string describing the company.",
         },
         {
           status: 400,

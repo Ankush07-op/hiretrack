@@ -5,10 +5,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { jobId: string } }
+  props: { params: Promise<{ jobId: string }> }
 ) {
-  try{
-  const session = await auth();
+  try {
+    const params = await props.params;
+    const session = await auth();
 
   // Authentication
   if (!session) {

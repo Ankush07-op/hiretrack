@@ -6,9 +6,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { resumeId: string, projectId: string } }
+  props: { params: Promise<{ resumeId: string; projectId: string }> }
 ) {
   try {
+    const params = await props.params;
 
     // Authentication
     const session = await auth();
@@ -375,9 +376,10 @@ export async function PATCH(
 // Delete Project
 export async function DELETE(
   request: Request,
-  { params }: { params: { resumeId: string; projectId: string; }; }
+  props: { params: Promise<{ resumeId: string; projectId: string }> }
 ) {
   try {
+    const params = await props.params;
     // Authentication
     const session = await auth();
 

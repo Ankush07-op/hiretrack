@@ -6,9 +6,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(
   request: Request,
-  { params }: { params: { resumeId: string } }
+  props: { params: Promise<{ resumeId: string }> }
 ) {
   try {
+    const params = await props.params;
 
     // Authentication
     const session = await auth();

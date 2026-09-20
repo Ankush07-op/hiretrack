@@ -105,7 +105,7 @@ export async function GET(request:Request) {
           page,
           limit,
           totalJobs,
-          totalPages: 1,
+          totalPages,
           hasNextPage: page < totalPages,
           hasPreviousPage: page > 1,
         },

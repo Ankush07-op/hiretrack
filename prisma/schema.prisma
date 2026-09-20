@@ -118,6 +118,10 @@ model Job {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([companyId])
+  @@index([createdById])
 }
 
 model Application {
@@ -144,6 +148,9 @@ model Application {
   updatedAt DateTime @updatedAt
 
   @@unique([candidateId, jobId])
+  @@index([candidateId])
+  @@index([jobId])
+  @@index([status])
 }
 
 model Resume {
@@ -191,7 +198,7 @@ model Experience {
   currentlyWorking Boolean @default(false)
 
   resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id])
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -217,7 +224,7 @@ model Education {
   currentlyStudying Boolean @default(false)
 
   resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id])
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,9 +260,9 @@ model ResumeCertificate {
   resumeId      String
   certificateId String
 
-  resume Resume @relation(fields: [resumeId], references: [id])
+  resume Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
-  certificate Certificate @relation(fields: [certificateId], references: [id])
+  certificate Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
 
   @@id([resumeId, certificateId])
 }
@@ -265,7 +272,7 @@ model Interview {
 
   applicationId String @unique
 
-  application Application @relation(fields: [applicationId], references: [id])
+  application Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 
   scheduledAt DateTime
 
@@ -299,7 +306,7 @@ model Project {
   endDate   DateTime?
 
   resumeId String
-  resume   Resume @relation(fields: [resumeId], references: [id])
+  resume   Resume @relation(fields: [resumeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

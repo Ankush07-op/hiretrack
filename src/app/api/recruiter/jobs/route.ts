@@ -312,6 +312,17 @@ export async function GET(request: Request) {
     );
   }
 
+  if (session.user.role !== Role.RECRUITER) {
+    return NextResponse.json(
+      {
+        message: "Only recruiters can view their posted jobs.",
+      },
+      {
+        status: 403,
+      }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
 
   const page = parseInt(searchParams.get("page") ?? "1");
@@ -341,9 +352,14 @@ export async function GET(request: Request) {
 
   const skip = (page - 1) * limit;
 
+  const where = {
+    createdById: session.user.id,
+  };
+
   const [totalJobs, jobs] = await Promise.all([
-    prisma.job.count(),
+    prisma.job.count({ where }),
     prisma.job.findMany({
+      where,
       skip,
       take: limit,
       select: {
@@ -358,6 +374,8 @@ export async function GET(request: Request) {
         skillRequirements: true,
         numberOfOpenings: true,
         applicationDeadline: true,
+        status: true,
+        createdAt: true,
       },
       orderBy: {
         createdAt: "desc",
@@ -374,7 +392,7 @@ export async function GET(request: Request) {
         page,
         limit,
         totalJobs,
-        totalPages: 1,
+        totalPages,
         hasNextPage: page < totalPages,
         hasPreviousPage: page > 1,
       },

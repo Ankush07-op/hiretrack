@@ -12,9 +12,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { applicationId: string } }
+  props: { params: Promise<{ applicationId: string; jobId: string }> }
 ) {
   try {
+    const params = await props.params;
     const session = await auth();
 
     // Authentication

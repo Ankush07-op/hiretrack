@@ -6,10 +6,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { resumeId: string } }
+  props: { params: Promise<{ resumeId: string }> }
 ) {
   try {
-     
+    const params = await props.params;
+
     // Authentication
     const session = await auth();
 
@@ -166,7 +167,7 @@ export async function PATCH(
       }
     );
 
-  } catch(error) {
+  } catch (error) {
     console.log(error);
 
     return NextResponse.json(
@@ -182,10 +183,11 @@ export async function PATCH(
 
 // View the entire resume
 export async function GET(
-  request:Request,
-  { params }: { params: { resumeId: string } }
+  request: Request,
+  props: { params: Promise<{ resumeId: string }> }
 ) {
   try {
+    const params = await props.params;
     // Authentication
     const session = await auth();
 
@@ -215,16 +217,23 @@ export async function GET(
       );
     }
 
-    // Candidate ownership
+    // Authorization & Ownership Verification
     const whereClause: Prisma.ResumeWhereInput =
       session.user.role === Role.CANDIDATE
         ? {
-            id: params.resumeId,
-            candidateId: session.user.id,
-          }
+          id: params.resumeId,
+          candidateId: session.user.id,
+        }
         : {
-            id: params.resumeId,
-          };
+          id: params.resumeId,
+          applications: {
+            some: {
+              job: {
+                createdById: session.user.id,
+              },
+            },
+          },
+        };
 
     // Fetch the complete resume
     const resume = await prisma.resume.findFirst({
@@ -317,7 +326,6 @@ export async function GET(
 
     // Create the response object
     const {
-      resumeCertificates,
       ...resumeData
     } = resume;
 
@@ -338,7 +346,7 @@ export async function GET(
       }
     );
 
-  } catch(error) {
+  } catch (error) {
     console.log(error);
 
     return NextResponse.json(
@@ -355,9 +363,10 @@ export async function GET(
 // Delete a resume
 export async function DELETE(
   _request: Request,
-  { params }: { params: { resumeId: string } }
+  props: { params: Promise<{ resumeId: string }> }
 ) {
   try {
+    const params = await props.params;
     // Authentication
     const session = await auth();
 
@@ -403,64 +412,7 @@ export async function DELETE(
       );
     }
 
-    // Fetch all linked certificates
-    const resumeCertificates =
-      await prisma.resumeCertificate.findMany({
-        where: {
-          resumeId: params.resumeId,
-        },
-        select: {
-          certificateId: true,
-        },
-      });
-
-    // Delete all ResumeCertificate relations
-    await prisma.resumeCertificate.deleteMany({
-      where: {
-        resumeId: params.resumeId,
-      },
-    });
-
-    // Delete orphan certificates
-    for (const item of resumeCertificates) {
-      const remainingLinks =
-      await prisma.resumeCertificate.count({
-        where: {
-          certificateId: item.certificateId,
-        },
-      });
-
-      if (remainingLinks === 0) {
-        await prisma.certificate.delete({
-          where: {
-            id: item.certificateId,
-          },
-        });
-      }
-    }
-
-    // Delete Experiences
-    await prisma.experience.deleteMany({
-      where: {
-        resumeId: params.resumeId,
-      },
-    });
-
-    // Delete Educations
-    await prisma.education.deleteMany({
-      where: {
-        resumeId: params.resumeId,
-      },
-    });
-
-    // Delete Projects
-    await prisma.project.deleteMany({
-      where: {
-        resumeId: params.resumeId,
-      },
-    });
-
-    // Delete Resume
+    // Delete Resume (Cascades automatically delete experiences, educations, projects, and resumeCertificates)
     await prisma.resume.delete({
       where: {
         id: params.resumeId,
